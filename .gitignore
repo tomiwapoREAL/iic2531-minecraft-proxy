@@ -1,0 +1,11 @@
+/.local/
+/node_modules/
+/logs/
+/world*/
+/server.properties
+/eula.txt
+*.jar
+*.log
+*.jsonl
+.env
+.env.*
