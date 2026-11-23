@@ -219,6 +219,7 @@ function runLocalProxy() {
     limits,
     contentLimits,
     mode,
+    onlineMode: process.env.MINECRAFT_PROXY_ONLINE !== 'false',
     onRecord: log === undefined ? undefined : record => {
       if (log === undefined) return;
       try {
@@ -230,7 +231,7 @@ function runLocalProxy() {
     },
   });
   proxy.once('listening', () => {
-    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort} (modo ${mode})`);
+    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort} (modo ${mode}, online-mode ${process.env.MINECRAFT_PROXY_ONLINE !== 'false'})`);
     if (log !== undefined) console.log(`Registro IDS: ${fileURLToPath(logPath)}`);
   });
   proxy.on('error', error => {
