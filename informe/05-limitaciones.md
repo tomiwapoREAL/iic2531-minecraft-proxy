@@ -18,11 +18,11 @@
 
 **Backend de prueba en la validación.** El Experimento 2 se hizo contra un backend escrito con `minecraft-protocol` y no contra el servidor vanilla. Demuestra que las reglas se disparan, pero no que el servidor real se vea afectado por los ataques ni que el proxy lo proteja. Esa es la pregunta del Experimento 3, que está pendiente.
 
-**Una sola corrida por ataque.** Cada ataque de la validación se ejecutó una vez por modo. **[PENDIENTE: actualizar si se agregan repeticiones.]**
+**Una sola corrida por condición.** Cada ataque se ejecutó una vez por modo, y el estrés del servidor una vez en cada una de las tres condiciones. Con una sola corrida no se puede estimar la varianza entre ejecuciones ni descartar efectos de una medición puntual; las cifras de impacto deben leerse como un caso observado, no como un promedio.
 
 **Línea base pequeña.** La línea base viene de una sesión individual corta y una partida de unos 23 minutos con tres jugadores, todos en el mismo mundo y con estilos de juego parecidos. Otros tipos de juego, como construcción a gran escala, combate o granjas automáticas, pueden producir perfiles de tráfico distintos y otra tasa de falsos positivos.
 
-**Falsos positivos sin medir.** Todavía no se ha medido cuántas alertas producen los límites de la evaluación en una partida normal. **[PENDIENTE: actualizar cuando exista la medición.]**
+**Falsos positivos sin medir de forma directa.** No existe una medición limpia de cuántas alertas producen los límites de la evaluación en una partida normal: el registro de la partida real es anterior a las reglas y el JSONL no guarda coordenadas para re-evaluar `movement_distance` sobre él (ver [Resultados](04-resultados.md#alertas-en-partidas-normales)). Por construcción el tráfico normal queda bajo los límites de contenido y de tasa, pero el rubber-band del servidor sobre un jugador legítimo podría disparar `movement_distance`, el mismo mecanismo que afectó a los bots de estrés; cuantificar ese caso requiere una partida normal con las reglas activas.
 
 ## Supuestos
 
@@ -34,9 +34,7 @@
 
 ## Cambios respecto de la propuesta original
 
-**[PENDIENTE: comparar con la propuesta entregada al curso.]**
-
-Dentro del propio repositorio el alcance evolucionó así:
+**[CONFIRMAR: contrastar con la propuesta entregada al curso (Propuesta_Proyecto_Final_Seguridad.pdf); el equipo tiene ese documento.]** Dentro del propio repositorio el alcance evolucionó así:
 
 1. El primer hito fue solo de observación: una partida vanilla 26.1 que produjera un registro JSONL a través del proxy, sin reglas activas.
 2. Después se agregaron las reglas de contenido y el modo *enforce*, que convierten el IDS en un IPS.

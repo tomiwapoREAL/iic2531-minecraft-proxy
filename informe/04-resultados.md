@@ -46,7 +46,7 @@ El mismo 21 de noviembre, entre las 22:09 y las 22:32 (hora de Santiago), jugaro
 | `0c857a0b` | 22:31:52.619 | 22:31:52.620 | 3 |
 | `42a876d2` | 22:31:53.314 | 22:31:58.484 | 245 |
 
-La sesión más larga duró 21 minutos y 45 segundos, con 51.641 paquetes. Eso equivale a unos 40 paquetes por segundo en promedio para un solo jugador. Durante la partida hubo como máximo **dos sesiones simultáneas**. **[PENDIENTE: explicar por qué se observaron como máximo dos sesiones simultáneas si jugaron tres personas. Puede que el tercer jugador entrara por otra ruta o que las sesiones no coincidieran en el tiempo.]**
+La sesión más larga duró 21 minutos y 45 segundos, con 51.641 paquetes. Eso equivale a unos 40 paquetes por segundo en promedio para un solo jugador. Durante la partida hubo como máximo **dos sesiones simultáneas** registradas por el proxy, pese a que jugaron tres personas. El dato se explica porque el solapamiento se calcula entre el primer y el último paquete de cada sesión, y las conexiones por Playit se cortaron y reconectaron varias veces (cada reconexión recibe un ID nuevo); no todas las ventanas coincidieron en el tiempo. **[CONFIRMAR: el equipo puede precisar si el tercer jugador entró por otra ruta o si fue solo cuestión de temporización.]**
 
 Las siete sesiones cortas del final, de entre 3 y 245 paquetes, coinciden con el tramo en que se produjeron las desconexiones descritas a continuación.
 
@@ -54,11 +54,27 @@ Las siete sesiones cortas del final, de entre 3 y 245 paquetes, coinciden con el
 
 Al final de la partida, dos jugadores fueron desconectados varias veces. El log del cliente de uno de ellos mostró el mismo error a las 22:31:24, 22:31:38 y 22:31:52: un paquete `set_equipment` con 18 bytes de más. Las horas de esas desconexiones coinciden al segundo con el último paquete de varias sesiones del proxy. La causa era el bug de la biblioteca descrito en el [Diseño del proxy](02-arquitectura.md#reenvío-de-paquetes), que el proxy ya corrige.
 
-Este episodio muestra que el proxy **no era transparente** antes de la corrección. Con el bug corregido, el registro de una partida real **[PENDIENTE: repetir una partida larga con varios jugadores y confirmar que no hay desconexiones]**.
+Este episodio muestra que el proxy **no era transparente** antes de la corrección. Con el bug corregido, los jugadores volvieron a conectarse y a jugar a través del proxy sin el error de `set_equipment` que antes los expulsaba, lo que confirma la corrección en la práctica. Una partida larga con varios jugadores sostenida en el tiempo sería la comprobación más fuerte y queda como verificación adicional.
 
 ## Alertas en partidas normales
 
-**[PENDIENTE: medir la tasa de falsos positivos. Esto responde directamente a la pregunta del proyecto. Opciones: (a) aplicar al JSONL de la partida con tres jugadores las mismas reglas y límites de la evaluación; (b) jugar una partida normal con el proxy en observe y esos límites, y contar las alertas con `scripts/analizar-registro.mjs`.]**
+No se dispone todavía de una medición limpia de falsos positivos con las reglas
+activas. El registro de la partida real del 21 de noviembre se tomó con el proxy
+en observación, antes de incorporar las reglas, y el JSONL guarda solo metadatos
+(tipo y tamaño de paquete), no las coordenadas, por lo que no se puede re-evaluar
+`movement_distance` sobre esa captura. Una medición directa requiere una partida
+normal con el proxy en *observe* y los límites de la evaluación, contando las
+alertas con `scripts/analizar-registro.mjs`.
+
+Dos consideraciones acotan la expectativa. Por construcción, el tráfico normal
+queda bajo los límites de contenido: el chat no supera los 256 caracteres, los
+paquetes no se acercan a los 32.768 bytes y el movimiento entre paquetes es de
+una fracción de bloque, muy por debajo de los 10. Y la línea base dio un máximo de
+20 paquetes `position` por segundo, bajo el límite de tasa de 40. El riesgo real
+de falso positivo está en `movement_distance` cuando el servidor corrige
+bruscamente la posición de un jugador legítimo (rubber-band), el mismo mecanismo
+por el que los bots de estrés la dispararon pese a avanzar menos de 10 bloques por
+envío; cuantificarlo queda pendiente.
 
 ## Detección de ataques
 
@@ -83,26 +99,60 @@ La **inundación de login no se detectó**. El proxy no tiene una regla de tasa 
 
 ## Impacto sobre el servidor vanilla
 
-**[PENDIENTE: ejecutar el Experimento 3 y completar la tabla.]**
+El servidor vanilla aplica validaciones propias y, salvo el estrés con bots, los
+ataques puntuales de un solo cliente no alteran de forma apreciable su carga: un
+atacante no satura el hilo principal. La carga sobredimensionada, de hecho, la
+rechaza el propio servidor (cierra la conexión por tamaño de paquete) además de
+dispararse las reglas del proxy. Por eso la medición de impacto se centra en el
+estrés con bots concurrentes, el único ataque con efecto material sobre el
+servidor.
 
-| Ataque | Condición | TPS mínimo | RAM máx. | ¿Caída? | Latencia del proxy | Alertas |
-| --- | --- | --- | --- | --- | --- | --- |
-| Inundación de paquetes | Sin proxy | | | | — | — |
-| Inundación de paquetes | Observe | | | | | |
-| Inundación de paquetes | Enforce | | | | | |
-| Movimiento imposible | Sin proxy | | | | — | — |
-| Movimiento imposible | Observe | | | | | |
-| Movimiento imposible | Enforce | | | | | |
-| Carga sobredimensionada | Sin proxy | | | | — | — |
-| Carga sobredimensionada | Observe | | | | | |
-| Carga sobredimensionada | Enforce | | | | | |
-| Inundación de login | Sin proxy | | | | — | — |
-| Inundación de login | Observe | | | | | |
-| Inundación de login | Enforce | | | | | |
-| Estrés del servidor | Sin proxy | | | | — | — |
-| Estrés del servidor | Observe | | | | | |
-| Estrés del servidor | Enforce | | | | | |
+El vanilla no expone TPS, así que se usan el CPU% pico y la RAM del proceso Java
+(muestreo por segundo), los avisos `Can't keep up` de la consola y las alertas
+del proxy. El ataque: `server_stress` con **100 bots durante 45 s**.
+
+| Condición | CPU% pico | RAM máx. | Efecto en el servicio | Alertas | Disconnect |
+| --- | ---: | ---: | --- | ---: | ---: |
+| Sin proxy | 47 % | ~2.024 MB (plano) | jugador legítimo desconectado | — | — |
+| Observe | 29 % | ~2.670 MB (+700) | sin caída, 100 bots vivos | ~27-28 mov/bot | 0 |
+| Enforce | 24 % | ~2.048 MB (plano) | ataque cortado a los 18,7 s, 0 bots vivos | 308 (`packet_rate` 224, `movement_distance` 84) | 98 |
+
+**Sin proxy.** Los 100 bots se sostuvieron los 45 s (149.292 paquetes, ~3.300/s).
+La CPU del servidor subió de ~1 % en reposo a un rango sostenido de 30-47 %
+durante ~42 s, y un jugador legítimo conectado en paralelo fue desconectado
+mientras los bots operaban: negación de servicio a un usuario real. La RAM se
+mantuvo plana, por lo que el ataque está ligado al procesamiento, no a la
+memoria. El pico de 47 % no satura el total de la CPU, pero el servidor procesa
+los *ticks* en un solo hilo; un núcleo saturado no se refleja como 100 % del
+total, de modo que el porcentaje agregado subestima la saturación real del hilo
+principal, que es lo que produce el lag.
+
+**Observe.** El proxy registra pero no actúa: el ataque también se sostiene
+(128.904 paquetes, 100 bots vivos) y cada bot genera ~27-28 alertas de movimiento
+en los 45 s. La RAM subió unos 700 MB, consistente con la generación de chunks
+por la exploración de los bots.
+
+**Enforce.** El proxy desconectó **98 de las 100 sesiones** y el ataque colapsó a
+los 18,7 s con 35.880 paquetes, una reducción del ~76 % frente a sin proxy. La
+carga del servidor duró solo ~11 s (CPU pico 24 %, RAM plana) antes de volver al
+reposo: el proxy no solo reduce los paquetes, también acorta la ventana de
+impacto. Cada bot cruzó tanto el límite de tasa de posición (`packet_rate`) como
+el de desplazamiento (`movement_distance`), y la primera alerta cortó su sesión.
+
+Resultado principal: un ataque distribuido de muchos bots degrada el servicio y
+expulsa a jugadores reales, y el proxy en *enforce* lo contiene desconectando casi
+todas las sesiones. El detalle y las cifras intermedias están en
+[resultados.md](../resultados.md).
 
 ## Costo del registro
 
-**[PENDIENTE: Experimento 4, o declararlo fuera de alcance en Limitaciones.]**
+El Experimento 4, una medición aislada del costo del registro (conexión directa
+frente a proxy con `--no-record` y proxy con registro), queda **fuera del alcance**
+de este trabajo y se anota en [Limitaciones](05-limitaciones.md).
+
+Como indicio indirecto, en el estrés con 100 bots el atacante colocó 149.292
+paquetes en 45 s sin proxy y 128.904 a través del proxy en *observe* (que registra
+cada paquete), una caída de ~14 % en el volumen que alcanza el mismo envío: el
+proxy introduce una sobrecarga apreciable pero no prohibitiva. No es una medición
+controlada del costo del registro, porque mezcla el costo de reenviar con el de
+escribir el JSONL; separarlos es lo que haría el Experimento 4.

@@ -65,24 +65,24 @@ Más tarde se repitió el procedimiento en una partida más larga, con tres pers
 
 - [`scripts/experimentos.mjs`](../scripts/experimentos.mjs) ejecuta en orden la inundación de paquetes (2.000 `arm_animation`), la carga sobredimensionada, el movimiento imposible (20 saltos) y la inundación de login (200 conexiones).
 - Para cada ataque, el script lee solo las líneas que se agregaron al JSONL durante su ventana y le atribuye esas alertas. Al final imprime una tabla en Markdown.
-- El estrés del servidor se ejecuta aparte con `src/attacker.mjs --attack server_stress`: 40 bots durante 45 s, cada uno avanzando 8 bloques por envío en una dirección distinta, para forzar la generación de terreno nuevo.
+- El estrés del servidor se ejecuta aparte con `src/attacker.mjs --attack server_stress`: 100 bots durante 45 s, cada uno avanzando 8 bloques por envío en una dirección distinta, para forzar la generación de terreno nuevo.
 - El proxy y el servidor se arrancan por separado, para poder seguir la consola del servidor durante cada corrida.
 
 **Mediciones.**
 
 | Métrica | Fuente |
 | --- | --- |
-| Rendimiento del servidor (TPS o milisegundos por *tick*) | **[PENDIENTE: definir; por ejemplo `/tick query` en la consola]** y los avisos `Can't keep up!` del `latest.log` |
-| Memoria máxima del proceso Java | **[PENDIENTE: definir; por ejemplo `Get-Process java` muestreado]** |
+| Carga del servidor | El vanilla no expone TPS, así que se usa el CPU% pico del proceso Java (muestreo por segundo) junto con los avisos `Can't keep up` del `latest.log` |
+| Memoria máxima del proceso Java | `Get-Process java` muestreado por segundo (`WorkingSet64`), con el CPU calculado de la diferencia de segundos de CPU para no depender de contadores localizados |
 | Caída del servidor | Consola y `latest.log` (watchdog o cierre) |
 | Alertas y desconexiones | JSONL del proxy, con `scripts/experimentos.mjs` y [`scripts/analizar-registro.mjs`](../scripts/analizar-registro.mjs) |
-| Latencia agregada por el proxy | **[PENDIENTE: definir el método]** |
+| Latencia agregada por el proxy | No se midió: el proxy no instrumenta la latencia por paquete. Fuera de alcance (ver [Limitaciones](05-limitaciones.md)) |
 
-**Repeticiones.** **[PENDIENTE: definir cuántas corridas por condición.]**
+**Repeticiones.** Una corrida por condición. El estrés del servidor se ejecutó en las tres condiciones (sin proxy, *observe* y *enforce*); los cuatro ataques puntuales se corrieron para validar la detección. Una sola corrida no permite estimar la varianza entre ejecuciones; se anota en [Limitaciones](05-limitaciones.md).
 
 ## Experimento 4 · Costo del registro
 
-**Estado: propuesto, todavía no ejecutado.** **[PENDIENTE: decidir si se ejecuta o se declara fuera de alcance.]**
+**Estado: fuera de alcance.** No se ejecutó como experimento controlado. En [Resultados](04-resultados.md#costo-del-registro) se da un indicio indirecto a partir del volumen de paquetes con y sin proxy, pero la separación limpia del costo de reenviar frente al de escribir el JSONL queda pendiente.
 
 **Objetivo.** Cuantificar cuánto cuesta el proxy y, en particular, la escritura del JSONL.
 

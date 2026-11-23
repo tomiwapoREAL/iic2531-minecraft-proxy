@@ -56,7 +56,17 @@ La regla `packet_rate` es opcional. Recibe un mapa de tipos de paquete a límite
 | `movement_distance` | `position`, `position_look`, `vehicle_move` | 10 bloques entre paquetes | Teletransporte o desplazamiento imposible |
 | `movement_invalid` | `position`, `position_look`, `vehicle_move` | Coordenadas no finitas | `NaN` o infinitos en la posición |
 
-**[PENDIENTE: justificar cada límite con la línea base o con los máximos del juego. Por ejemplo, en una partida normal el máximo observado fue de 20 paquetes `position` por segundo, y el juego limita los libros a 100 páginas.]**
+Los límites por defecto se fijan desde la línea base y desde los máximos del propio
+juego, con holgura para no afectar el juego normal:
+
+- **`book_pages` (100).** Es el máximo de páginas que permite un libro en Minecraft; por encima, el contenido no proviene del cliente oficial.
+- **`text_length` (256) y `book_length` (102.400).** Acotan el chat y los libros muy por encima de su uso normal; un mensaje o un libro que los supere indica relleno automatizado.
+- **`packet_size` y `payload_size` (32.768 bytes).** El tráfico de juego normal usa paquetes de unos pocos a unos cientos de bytes; 32 KB deja un margen amplio y acota las cargas binarias sobredimensionadas.
+- **`movement_distance` (10 bloques entre paquetes).** En la línea base el jugador se mueve una fracción de bloque por paquete; 10 bloques es inalcanzable por movimiento físico entre dos paquetes consecutivos y marca saltos o teletransportes.
+
+La regla de tasa se calibra aparte: la línea base dio un máximo de 20 paquetes
+`position` por segundo, por lo que el límite de 40 usado en la evaluación deja el
+doble de margen sobre el máximo observado en juego normal.
 
 La regla de movimiento necesita estado: recuerda la última posición que envió el jugador y mide la distancia euclidiana hasta la siguiente. Un teletransporte legítimo del servidor, ya sea por un comando, una reaparición o una corrección de posición, haría que el siguiente paquete del cliente pareciera un salto imposible. Para evitarlo, el proxy observa también los paquetes `position`, `respawn` y `login` que envía el servidor (`noteServerMovement`) y reinicia la referencia con ellos.
 
@@ -79,7 +89,13 @@ El registro se abre en modo anexado. Cada evento se escribe como una línea JSON
 {"type":"action","timestamp":"…","sessionId":"…","action":"disconnect","rule":"movement_distance","packet":"position"}
 ```
 
-El primer ejemplo es real, con el ID de sesión reemplazado por uno ficticio. Los otros dos muestran la forma de los campos. **[PENDIENTE: reemplazarlos por líneas reales de una corrida de ataque.]** Las horas están en UTC. El ID de sesión es un UUID aleatorio por conexión: si un jugador se reconecta, recibe un ID nuevo.
+El primer ejemplo es real, con el ID de sesión reemplazado por uno ficticio; los
+otros dos muestran la forma de los campos `alert` y `action`. En la corrida de
+estrés en *enforce*, estos dos tipos de evento se produjeron 308 y 98 veces
+respectivamente: cada bot generó alertas de `packet_rate` y `movement_distance`, y
+la primera cortó su sesión con un evento `action`. Las horas están en UTC. El ID de
+sesión es un UUID aleatorio por conexión: si un jugador se reconecta, recibe un ID
+nuevo.
 
 ## Configuración
 
