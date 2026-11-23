@@ -2,16 +2,29 @@ import { closeSync, mkdirSync, openSync, writeSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import protocol from 'minecraft-protocol';
 import { nameToMcOfflineUUID } from 'minecraft-protocol/src/datatypes/uuid.js';
 import { observePlayerPackets } from './ids.mjs';
+import { createContentRules } from './rules.mjs';
 
 const version = '26.1';
 const host = '127.0.0.1';
 const backendPort = 25566;
 const { LOGIN, CONFIGURATION, PLAY } = protocol.states;
 
-export function createProxy({ port = 25565, onlineMode = true, onRecord, limits = {} } = {}) {
+export function createProxy({
+  port = 25565,
+  onlineMode = true,
+  onRecord,
+  limits = {},
+  contentLimits = {},
+  mode = 'observe',
+} = {}) {
+  if (mode !== 'observe' && mode !== 'enforce') {
+    throw new RangeError("mode debe ser 'observe' o 'enforce'.");
+  }
+
   const proxy = protocol.createServer({
     host, port, version,
     motd: 'IIC2531 - proxy defensivo',
@@ -24,21 +37,37 @@ export function createProxy({ port = 25565, onlineMode = true, onRecord, limits 
     },
   });
 
-  proxy.on('login', player => bridgeSession(proxy, player));
-  if (onRecord) {
-    proxy.on('playerJoin', player => observePlayerPackets(player, { onRecord, limits }));
-  }
+  proxy.on('login', player => bridgeSession(proxy, player, { onRecord, rateLimits: limits, contentLimits, mode }));
   return proxy;
 }
 
-function bridgeSession(proxy, player) {
+function bridgeSession(proxy, player, { onRecord, rateLimits = {}, contentLimits = {}, mode = 'observe' } = {}) {
   const backend = new protocol.Client(false, version, undefined, true);
+  const sessionId = randomUUID();
+  const rules = createContentRules(contentLimits);
   const pending = [];
   let pendingBytes = 0;
   let backendAccepted = false;
   let joined = false;
   let closed = false;
   const joinTimer = setTimeout(() => endSession('Tiempo de espera del backend agotado'), 30_000);
+
+  // Punto único de registro. En modo enforce, una alerta desconecta al jugador y
+  // el paquete infractor no se reenvía (quien lo emite ya llamó a endSession).
+  function record(event) {
+    onRecord?.(event);
+    if (mode === 'enforce' && event.type === 'alert' && !closed) {
+      onRecord?.({
+        type: 'action',
+        timestamp: new Date().toISOString(),
+        sessionId,
+        action: 'disconnect',
+        rule: event.rule,
+        packet: event.packet,
+      });
+      endSession(`Desconectado por la regla ${event.rule}`);
+    }
+  }
 
   function endSession(reason) {
     if (closed) return;
@@ -69,7 +98,7 @@ function bridgeSession(proxy, player) {
     player.removeAllListeners(name);
   }
 
-  player.on('packet', (_data, metadata, _buffer, frame) => {
+  player.on('packet', (data, metadata, buffer, frame) => {
     const { name, state } = metadata;
     if (closed || (state !== CONFIGURATION && state !== PLAY)) return;
     if (backend.state !== state) {
@@ -82,6 +111,15 @@ function bridgeSession(proxy, player) {
       return;
     }
 
+    // Reglas de contenido sobre el payload ya interpretado por la biblioteca.
+    // No altera el reenvío crudo: inspecciona y, en enforce, corta antes de pasar.
+    if (state === PLAY) {
+      for (const violation of rules.inspect(metadata, data, buffer)) {
+        record({ type: 'alert', timestamp: new Date().toISOString(), sessionId, direction: 'serverbound', ...violation });
+      }
+      if (closed) return;
+    }
+
     backend.writeRaw(frame);
     if (state === CONFIGURATION && name === 'finish_configuration') {
       backend.state = PLAY;
@@ -90,6 +128,9 @@ function bridgeSession(proxy, player) {
         joined = true;
         clearTimeout(joinTimer);
         proxy.emit('playerJoin', player);
+        // Observador de tasa de ids.mjs: comparte sessionId y el mismo canal de
+        // registro, de modo que sus alertas también activan enforce.
+        observePlayerPackets(player, { onRecord: record, limits: rateLimits, sessionId });
       }
     } else if (state === PLAY && name === 'configuration_acknowledged') {
       backend.state = CONFIGURATION;
@@ -97,8 +138,10 @@ function bridgeSession(proxy, player) {
     }
   });
 
-  backend.on('packet', (_data, { state }, _buffer, frame) => {
+  backend.on('packet', (data, metadata, _buffer, frame) => {
+    const { state } = metadata;
     if (!closed && state === player.state && (state === CONFIGURATION || state === PLAY)) {
+      if (state === PLAY) rules.noteServerMovement(metadata, data);
       player.writeRaw(frame);
     }
   });
@@ -136,6 +179,9 @@ function runLocalProxy() {
     throw new Error('MINECRAFT_IDS_LIMITS debe ser un objeto JSON con límites enteros positivos.');
   }
 
+  const contentLimits = JSON.parse(process.env.MINECRAFT_CONTENT_LIMITS ?? '{}');
+  const mode = process.env.MINECRAFT_PROXY_MODE === 'enforce' ? 'enforce' : 'observe';
+
   const logDirectory = new URL('../.local/proxy/', import.meta.url);
   const logPath = new URL('packets.jsonl', logDirectory);
   let log;
@@ -152,6 +198,8 @@ function runLocalProxy() {
 
   const proxy = createProxy({
     limits,
+    contentLimits,
+    mode,
     onRecord: log === undefined ? undefined : record => {
       if (log === undefined) return;
       try {
@@ -163,7 +211,7 @@ function runLocalProxy() {
     },
   });
   proxy.once('listening', () => {
-    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort}`);
+    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort} (modo ${mode})`);
     if (log !== undefined) console.log(`Registro IDS: ${fileURLToPath(logPath)}`);
   });
   proxy.on('error', error => {
