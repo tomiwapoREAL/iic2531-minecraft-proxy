@@ -13,6 +13,25 @@ const host = '127.0.0.1';
 const backendPort = 25566;
 const { LOGIN, CONFIGURATION, PLAY } = protocol.states;
 
+export class BackendClient extends protocol.Client {
+  constructor() {
+    super(false, version, undefined, true);
+  }
+
+  setSerializer(state) {
+    super.setSerializer(state);
+    if (state !== PLAY) return;
+
+    // El lector de equipamiento modifica el búfer. Conserva los bytes para writeRaw.
+    const parsePacket = this.deserializer.parsePacketBuffer.bind(this.deserializer);
+    this.deserializer.parsePacketBuffer = frame => {
+      const parsed = parsePacket(Buffer.from(frame));
+      parsed.fullBuffer = frame;
+      return parsed;
+    };
+  }
+}
+
 export function createProxy({
   port = 25565,
   onlineMode = true,
@@ -42,7 +61,7 @@ export function createProxy({
 }
 
 function bridgeSession(proxy, player, { onRecord, rateLimits = {}, contentLimits = {}, mode = 'observe' } = {}) {
-  const backend = new protocol.Client(false, version, undefined, true);
+  const backend = new BackendClient();
   const sessionId = randomUUID();
   const rules = createContentRules(contentLimits);
   const pending = [];
