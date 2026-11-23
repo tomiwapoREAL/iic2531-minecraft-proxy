@@ -151,16 +151,23 @@ que la tabla de impacto se centra en el.
 
 | Ataque | Condicion | CPU% pico | RAM max | `Can't keep up` / caida | Alertas proxy | Disconnect |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| server_stress (100 bots, 45 s) | sin proxy | 47% | ~2.024 MB | jugador desconectado | — | — |
-| server_stress (100 bots, 45 s) | observe | | | | | — |
-| server_stress (100 bots, 45 s) | enforce | | | | | |
+| server_stress (100 bots, 45 s) | sin proxy | 47% | ~2.024 MB (plano) | jugador desconectado | — | — |
+| server_stress (100 bots, 45 s) | observe | 29% | ~2.670 MB (+700) | sin caida, 100 bots vivos | pendiente | 0 |
+| server_stress (100 bots, 45 s) | enforce | pendiente | pendiente | ataque cortado, 0 bots vivos a los 18,7 s | pendiente | 100 |
 | Ataques puntuales | cualquiera | ~reposo | plano | no | ver validacion | ver validacion |
 
-La fila sin proxy proviene del muestreo documentado mas abajo. Faltan observe y
-enforce: se completan corriendo el mismo ataque con el proxy en cada modo, con
-el muestreo de CPU/RAM en paralelo y leyendo las alertas del JSONL. Hipotesis:
-en enforce el proxy no detiene el ataque, porque cada bot se mantiene bajo los
-umbrales por conexion; la corrida lo confirma o lo refuta.
+**Comparacion por paquetes que alcanzaron al servicio.** Sin proxy los 100 bots
+sostuvieron el ataque los 45 s (149.292 paquetes). En observe el proxy solo
+registra y el ataque tambien se sostiene (128.904 paquetes, 100 bots vivos). En
+enforce el proxy desconecto a los 100 bots y el ataque colapso a los 18,7 s con
+35.880 paquetes: una reduccion de ~76% frente a sin proxy.
+
+**Correccion a la hipotesis previa.** Se esperaba que las reglas por conexion no
+frenaran un ataque distribuido. La corrida lo refuto: en enforce el proxy corto
+las 100 sesiones. Queda por identificar en el JSONL que regla disparo por bot
+(el ataque mueve a los bots de forma continua, lo que apunta a la regla de
+movimiento o a la de tasa de posicion). La tabla se completa con el muestreo de
+CPU/RAM del enforce y el desglose de alertas de ambas corridas.
 
 ### Estres con bots concurrentes
 
