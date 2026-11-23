@@ -48,6 +48,7 @@ export function createProxy({
     host, port, version,
     motd: 'IIC2531 - proxy defensivo',
     'online-mode': onlineMode,
+    'max-players': 120,
     keepAlive: false,
     hideErrors: true,
     beforeLogin(player) {
