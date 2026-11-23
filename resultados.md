@@ -153,7 +153,7 @@ que la tabla de impacto se centra en el.
 | --- | --- | ---: | ---: | --- | ---: | ---: |
 | server_stress (100 bots, 45 s) | sin proxy | 47% | ~2.024 MB (plano) | jugador desconectado | — | — |
 | server_stress (100 bots, 45 s) | observe | 29% | ~2.670 MB (+700) | sin caida, 100 bots vivos | pendiente | 0 |
-| server_stress (100 bots, 45 s) | enforce | pendiente | pendiente | ataque cortado, 0 bots vivos a los 18,7 s | pendiente | 100 |
+| server_stress (100 bots, 45 s) | enforce | 24% | ~2.048 MB (plano) | ataque cortado, 0 bots vivos a los 18,7 s | pendiente | 100 |
 | Ataques puntuales | cualquiera | ~reposo | plano | no | ver validacion | ver validacion |
 
 **Comparacion por paquetes que alcanzaron al servicio.** Sin proxy los 100 bots
@@ -161,6 +161,11 @@ sostuvieron el ataque los 45 s (149.292 paquetes). En observe el proxy solo
 registra y el ataque tambien se sostiene (128.904 paquetes, 100 bots vivos). En
 enforce el proxy desconecto a los 100 bots y el ataque colapso a los 18,7 s con
 35.880 paquetes: una reduccion de ~76% frente a sin proxy.
+
+En el muestreo del enforce la carga del servidor solo duro ~11 s (CPU pico 24%,
+RAM plana en ~2.048 MB) antes de volver al reposo, frente a los ~37-42 s de
+carga en sin proxy y observe: el proxy no solo reduce los paquetes, tambien
+acorta la ventana de impacto al desconectar las sesiones.
 
 **Correccion a la hipotesis previa.** Se esperaba que las reglas por conexion no
 frenaran un ataque distribuido. La corrida lo refuto: en enforce el proxy corto
