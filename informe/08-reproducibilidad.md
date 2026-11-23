@@ -1,38 +1,89 @@
 # Anexo · Cómo reproducir
 
-> **Notas para quien escribe**
->
-> - La pauta pide el código acompañado de instrucciones mínimas: estructura del repo, dependencias y cómo reproducir la demo y los resultados.
-> - Resume el [README.md](../README.md) sin copiarlo entero:
->   - preparar el entorno;
->   - arrancar el servidor;
->   - arrancar el proxy con sus flags;
->   - correr los ataques y analizar el JSONL.
-> - Incluye los comandos exactos usados en cada experimento de [03-metodologia.md](03-metodologia.md) y la versión del repo (hash del commit) con que se obtuvieron los resultados.
-
 ## Estructura del repositorio
 
 | Ruta | Contenido |
 | --- | --- |
-| `src/proxy.mjs` | Proxy, puente de sesiones y CLI |
+| `src/proxy.mjs` | Proxy, puente de sesiones y línea de comandos |
 | `src/ids.mjs` | Observador de tasa |
 | `src/rules.mjs` | Reglas de contenido |
 | `src/attacker.mjs` | Cliente atacante |
 | `src/*.test.mjs` | Pruebas unitarias (`npm test`) |
 | `scripts/prepare-server.ps1` | Descarga verificada del servidor 26.1 y de OpenJDK 25 |
 | `scripts/start-server.ps1` | Arranque del backend en `127.0.0.1:25566` |
-| `scripts/experimentos.mjs` | Secuencia de ataques y conteo de alertas |
-| `scripts/analizar-registro.mjs` | Resumen de un JSONL por sesión |
+| `scripts/experimentos.mjs` | Secuencia de ataques y conteo de alertas por ataque |
+| `scripts/analizar-registro.mjs` | Resumen de un JSONL por sesión y en total |
+| `config/server.properties.example` | Configuración del backend de laboratorio |
 | `historia.md`, `tropiezos.md`, `resultados.md` | Bitácoras y datos del laboratorio |
 
 ## Preparación
 
-**[PENDIENTE]**
+Requisitos: Windows con PowerShell 5.1 o posterior y Node.js 24 o posterior. El script de preparación instala Java 25 en una carpeta local. Desde la raíz del repositorio:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\prepare-server.ps1
+npm.cmd ci
+npm.cmd test
+```
+
+El primer arranque del servidor genera `.local/server/eula.txt`. Para continuar hay que aceptar la EULA cambiando `eula=false` por `eula=true`. Luego:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\start-server.ps1
+```
 
 ## Comandos por experimento
 
-**[PENDIENTE]**
+Cada comando va en su propia terminal. El servidor tiene que estar arrancado.
+
+**Experimento 1: línea base con un cliente oficial.**
+
+```powershell
+node .\src\proxy.mjs
+```
+
+Luego se entra con Minecraft Java 26.1 a `127.0.0.1:25565`, y se resume el registro:
+
+```powershell
+node .\scripts\analizar-registro.mjs .local\proxy\packets.jsonl
+```
+
+**Experimentos 2 y 3: ataques.** El atacante no tiene cuenta, así que el proxy se arranca con `--online false`:
+
+```powershell
+node .\src\proxy.mjs --online false --mode observe --rate "arm_animation=60"
+```
+
+```powershell
+node .\scripts\experimentos.mjs --port 25565 --etiqueta observe
+```
+
+Para la condición *enforce* se repite con `--mode enforce` y `--etiqueta enforce`. Para la condición sin proxy, el script apunta directo al backend:
+
+```powershell
+node .\scripts\experimentos.mjs --port 25566 --sin-registro --etiqueta sin-proxy
+```
+
+Estrés del servidor, con 40 bots durante 45 segundos que avanzan 8 bloques por envío:
+
+```powershell
+node .\src\attacker.mjs --attack server_stress --bots 40 --duration 45 --step 8
+```
+
+Un ataque individual:
+
+```powershell
+node .\src\attacker.mjs --attack packet_flood --count 400
+```
+
+**Experimento 4: proxy sin registro.**
+
+```powershell
+node .\src\proxy.mjs --no-record
+```
 
 ## Versión evaluada
 
-**[PENDIENTE: hash del commit]**
+**[PENDIENTE: hash del commit con que se obtuvieron los resultados finales.]**
+
+El esqueleto de este informe se escribió sobre el commit `579edff` de `develop`, y en esa versión las 10 pruebas unitarias pasan.

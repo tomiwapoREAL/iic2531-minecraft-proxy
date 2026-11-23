@@ -1,24 +1,26 @@
 # Informe final
 
-Esta carpeta contiene el informe escrito del proyecto final de IIC2531. Hay un archivo por sección, para que cada integrante escriba la suya en su propia rama sin generar conflictos.
+Esta carpeta contiene el informe escrito del proyecto final de IIC2531. Hay un archivo por sección, y al final se juntan todos en un PDF (ver [Armar el PDF](#armar-el-pdf)).
 
-Cada sección empieza con un bloque de notas (`> **Notas para quien escribe**`) que indica qué debe cubrir y qué material del repo se puede reutilizar. **Borra ese bloque cuando la sección esté terminada.**
+Lo que falta está marcado en el texto. `**[PENDIENTE: …]**` indica un dato o una medición que todavía no existe. `**[CONFIRMAR: …]**` indica algo que alguien del equipo tiene que verificar. Para ver todo lo que queda:
 
-## Reparto y estado
+```powershell
+Select-String -Path informe\*.md -Pattern 'PENDIENTE|CONFIRMAR'
+```
 
-| Archivo | Sección | Responsable | Estado |
-| --- | --- | --- | --- |
-| [00-resumen.md](00-resumen.md) | Resumen | _pendiente_ | Esqueleto |
-| [01-contexto.md](01-contexto.md) | Contexto y problema | _pendiente_ | Esqueleto |
-| [02-arquitectura.md](02-arquitectura.md) | Diseño del proxy e IDS | _pendiente_ | Esqueleto |
-| [03-metodologia.md](03-metodologia.md) | Metodología | _pendiente_ | Esqueleto |
-| [04-resultados.md](04-resultados.md) | Resultados | _pendiente_ | Esqueleto |
-| [05-limitaciones.md](05-limitaciones.md) | Limitaciones y cambios de alcance | _pendiente_ | Esqueleto |
-| [06-etica.md](06-etica.md) | Consideraciones éticas | _pendiente_ | Esqueleto |
-| [07-conclusiones.md](07-conclusiones.md) | Conclusiones y aprendizajes | _pendiente_ | Esqueleto |
-| [08-reproducibilidad.md](08-reproducibilidad.md) | Anexo: cómo reproducir | _pendiente_ | Esqueleto |
+## Estado
 
-Estados sugeridos: `Esqueleto` → `Borrador` → `En revisión` → `Listo`.
+| Archivo | Sección | Estado |
+| --- | --- | --- |
+| [00-resumen.md](00-resumen.md) | Resumen | Se escribe al final |
+| [01-contexto.md](01-contexto.md) | Contexto y problema | Borrador |
+| [02-arquitectura.md](02-arquitectura.md) | Diseño del proxy e IDS | Borrador. Falta justificar los límites y poner ejemplos reales de alerta |
+| [03-metodologia.md](03-metodologia.md) | Metodología | Borrador. Faltan las métricas y las repeticiones de los experimentos 3 y 4 |
+| [04-resultados.md](04-resultados.md) | Resultados | Parcial. Faltan los falsos positivos, el impacto sobre el vanilla y el costo del registro |
+| [05-limitaciones.md](05-limitaciones.md) | Limitaciones y cambios de alcance | Borrador. Falta la comparación con la propuesta |
+| [06-etica.md](06-etica.md) | Consideraciones éticas | Borrador. Falta confirmar el consentimiento en la partida con amigos |
+| [07-conclusiones.md](07-conclusiones.md) | Conclusiones y aprendizajes | Se escribe al final |
+| [08-reproducibilidad.md](08-reproducibilidad.md) | Anexo: cómo reproducir | Borrador. Falta el hash de la versión final |
 
 ## Qué pide la pauta
 
@@ -33,7 +35,7 @@ Estados sugeridos: `Esqueleto` → `Borrador` → `En revisión` → `Listo`.
 
 ## Convenciones
 
-- **Rama y PR.** Trabaja en una rama propia que salga de `feat/informe`, por ejemplo `informe/resultados`. Abre el PR hacia `feat/informe` y pide que lo revise alguien que no escribió esa sección.
+- **Rama.** El informe vive en `feat/informe`. Haz `git pull` antes de empezar y commits pequeños. Si dos personas tocan la misma sección a la vez, avísense.
 - **Cifras con fuente.** Cada número debe poder rastrearse hasta [resultados.md](../resultados.md), un JSONL o un log. Si una cifra todavía no existe, escribe `**[PENDIENTE: …]**` en vez de inventarla.
 - **Figuras.** Guarda las figuras en [figuras/](figuras/). Si las genera un script, deja el script en `scripts/` para poder regenerarlas.
 - **Horas.** Indica la zona horaria. El JSONL registra en UTC y las bitácoras usan la hora de Santiago.
