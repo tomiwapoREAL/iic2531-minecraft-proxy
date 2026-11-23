@@ -240,3 +240,42 @@ detienen. Es el mismo vacio de la inundacion de login: el rate-limiting por
 conexion no cubre un ataque distribuido entre muchas sesiones. Una defensa
 efectiva requeriria una regla agregada (conexiones nuevas o paquetes por ventana
 sumando todas las sesiones).
+
+## Resistencia del servidor a la caída
+
+Tras confirmar que el estrés con bots degrada el servicio, se buscó provocar un
+cierre del proceso del servidor **sin modificar el heap**. Se probaron tres
+vectores de ataque, todos directos al servidor vanilla 26.1 en `127.0.0.1:25566`.
+
+| Ataque | Mecanismo | Corrida | Resultado |
+| --- | --- | --- | --- |
+| `server_stress` | movimiento (genera chunks) | 100 bots, 45 s | CPU pico 47 %, servidor hasta 313 ticks (15,6 s) atrás, jugador expulsado |
+| `packet_storm` | inundación estática de `arm_animation`, sin mover | 120 bots, ~200/s c/u | 226.215 paquetes (~6.000/s), CPU moderada, sin caída; los bots caen por timeout a los 38 s |
+| `flood` | movimiento + reconexión inmediata | 120 bots, 90 s | 299 reconexiones, pool lleno los 90 s, CPU pico ~27 %, RAM estable; sin caída |
+
+Ninguno cerró el proceso. El patrón, confirmado en el `latest.log` del servidor,
+es el mismo en los tres casos:
+
+- El servidor emite `Can't keep up! … Running Xms behind`, con el peor registro en
+  **15.666 ms (313 ticks) de atraso**: degradación severa, no cierre.
+- El watchdog nunca se disparó, porque exige que **un solo tick** supere los 60 s,
+  mientras que un flood reparte el trabajo en muchos ticks (picos de 2-15 s).
+- El movimiento se rechaza en masa (`moved wrongly` 20.656 veces, `moved too
+  quickly` 3.660), así que los bots no exploran chunks nuevos de forma sostenida.
+- Hay un efecto **autolimitante**: cuando el servidor se atrasa lo suficiente,
+  expulsa a sus propios bots por `Timed out` o por `Flying is not enabled`, la
+  carga baja y el servidor se recupera. La reconexión de `flood` mantiene el pool
+  lleno, pero el tiempo que los bots pasan en el *handshake* diluye la carga de
+  juego (solo 317 paquetes/s efectivos), por lo que lagueó menos que
+  `server_stress`.
+
+**Conclusión.** El servidor vanilla 26.1, con el heap por defecto y en este
+hardware, **resiste el cierre del proceso** frente a floods de nivel de
+aplicación. El impacto máximo alcanzable por esta vía es la **degradación del
+servicio hasta volverlo injugable** (lag de varios segundos y expulsión de
+jugadores reales), que ya constituye una negación de servicio. Un cierre forzado
+requeriría condiciones fuera del alcance probado: un heap reducido (agotamiento de
+memoria) o una operación costosa en un solo tick (por ejemplo una estructura NBT
+grande, que exige permisos de creativo u operador). La defensa pertinente sigue
+siendo la del proxy: en *enforce* desconectó 98 de 100 sesiones y redujo los
+paquetes un 76 %.
