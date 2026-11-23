@@ -136,33 +136,31 @@ de tasa por dirección de origen o por ventana de conexiones.
 
 ### Impacto sobre el servidor vanilla
 
-**Pendiente de ejecutar.** Esta es la medición que no se puede falsear con un
-backend de prueba: el objetivo es mostrar que un ataque degrada o tumba el
-servidor vanilla 26.1 sin proxy y que el proxy lo contiene. Procedimiento:
+Objetivo: mostrar que un ataque degrada el servidor vanilla 26.1 y si el proxy
+lo contiene. Metricas medibles en vanilla sin plugins: CPU% pico y RAM del
+proceso Java (muestreo por segundo), avisos `Can't keep up` y desconexion del
+jugador en la consola, y las alertas del proxy desde su JSONL con
+`scripts/analizar-registro.mjs`. El vanilla no expone TPS, por lo que no se usa.
 
-1. Levantar el servidor vanilla en `127.0.0.1:25566` y el proxy en `25565`.
-2. Para cada ataque, correr tres condiciones: conexión directa al backend (sin
-   proxy), proxy en observe y proxy en enforce.
-3. Registrar por condición las métricas del servidor y del proxy.
+Los cuatro ataques puntuales (inundacion de paquetes, movimiento imposible,
+carga sobredimensionada, inundacion de login) no mueven de forma apreciable la
+carga del servidor: un solo cliente no satura el hilo principal. Su valor es la
+deteccion, ya registrada en la seccion de validacion. El unico ataque con
+impacto material sobre el servidor es el estres con bots concurrentes, de modo
+que la tabla de impacto se centra en el.
 
-| Ataque | Condición | TPS mínimo | RAM máx. | ¿Caída? | Latencia del proxy | Alertas |
-| --- | --- | --- | --- | --- | --- | --- |
-| Inundación de paquetes | sin proxy | | | | — | — |
-| Inundación de paquetes | observe | | | | | |
-| Inundación de paquetes | enforce | | | | | |
-| Movimiento imposible | sin proxy | | | | — | — |
-| Movimiento imposible | observe | | | | | |
-| Movimiento imposible | enforce | | | | | |
-| Carga sobredimensionada | sin proxy | | | | — | — |
-| Carga sobredimensionada | observe | | | | | |
-| Carga sobredimensionada | enforce | | | | | |
-| Inundación de login | sin proxy | | | | — | — |
-| Inundación de login | observe | | | | | |
-| Inundación de login | enforce | | | | | |
+| Ataque | Condicion | CPU% pico | RAM max | `Can't keep up` / caida | Alertas proxy | Disconnect |
+| --- | --- | ---: | ---: | --- | ---: | ---: |
+| server_stress (100 bots, 45 s) | sin proxy | 47% | ~2.024 MB | jugador desconectado | — | — |
+| server_stress (100 bots, 45 s) | observe | | | | | — |
+| server_stress (100 bots, 45 s) | enforce | | | | | |
+| Ataques puntuales | cualquiera | ~reposo | plano | no | ver validacion | ver validacion |
 
-Las columnas de alertas y latencia se completan desde el JSONL del proxy con
-`scripts/analizar-registro.mjs`. El TPS, la RAM y la caída se leen de la consola
-y del `latest.log` del servidor vanilla.
+La fila sin proxy proviene del muestreo documentado mas abajo. Faltan observe y
+enforce: se completan corriendo el mismo ataque con el proxy en cada modo, con
+el muestreo de CPU/RAM en paralelo y leyendo las alertas del JSONL. Hipotesis:
+en enforce el proxy no detiene el ataque, porque cada bot se mantiene bajo los
+umbrales por conexion; la corrida lo confirma o lo refuta.
 
 ### Estres con bots concurrentes
 
