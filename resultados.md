@@ -152,8 +152,8 @@ que la tabla de impacto se centra en el.
 | Ataque | Condicion | CPU% pico | RAM max | `Can't keep up` / caida | Alertas proxy | Disconnect |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
 | server_stress (100 bots, 45 s) | sin proxy | 47% | ~2.024 MB (plano) | jugador desconectado | — | — |
-| server_stress (100 bots, 45 s) | observe | 29% | ~2.670 MB (+700) | sin caida, 100 bots vivos | pendiente | 0 |
-| server_stress (100 bots, 45 s) | enforce | 24% | ~2.048 MB (plano) | ataque cortado, 0 bots vivos a los 18,7 s | pendiente | 100 |
+| server_stress (100 bots, 45 s) | observe | 29% | ~2.670 MB (+700) | sin caida, 100 bots vivos | ~27-28 mov/bot (log compartido) | 0 |
+| server_stress (100 bots, 45 s) | enforce | 24% | ~2.048 MB (plano) | ataque cortado, 0 bots vivos a los 18,7 s | 308 (rate 224, mov 84) | 98 |
 | Ataques puntuales | cualquiera | ~reposo | plano | no | ver validacion | ver validacion |
 
 **Comparacion por paquetes que alcanzaron al servicio.** Sin proxy los 100 bots
@@ -166,6 +166,16 @@ En el muestreo del enforce la carga del servidor solo duro ~11 s (CPU pico 24%,
 RAM plana en ~2.048 MB) antes de volver al reposo, frente a los ~37-42 s de
 carga en sin proxy y observe: el proxy no solo reduce los paquetes, tambien
 acorta la ventana de impacto al desconectar las sesiones.
+
+**Que regla corto el ataque.** En enforce el proxy registro 308 alertas y 98
+acciones de desconexion de 100 sesiones: cada bot cruzo tanto el limite de tasa
+de posicion (`packet_rate`, 224 en total) como el de desplazamiento
+(`movement_distance`, 84), y la primera alerta corto su sesion, por lo que cada
+bot alcanzo solo 1-3 alertas antes de caer. En observe, sin corte, cada bot
+acumulo ~27-28 alertas de movimiento durante los 45 s. Nota de metodo: la corrida
+observe escribio en el `packets.jsonl` por defecto, compartido con el historial,
+por lo que su total de alertas no se aisla; para una medicion limpia conviene un
+`--log` propio por corrida, como se hizo en enforce.
 
 **Correccion a la hipotesis previa.** Se esperaba que las reglas por conexion no
 frenaran un ataque distribuido. La corrida lo refuto: en enforce el proxy corto
