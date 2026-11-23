@@ -14,7 +14,7 @@ Select-String -Path informe\*.md -Pattern 'PENDIENTE|CONFIRMAR'
 | --- | --- | --- |
 | [00-resumen.md](00-resumen.md) | Resumen | Se escribe al final |
 | [01-contexto.md](01-contexto.md) | Contexto y problema | Borrador |
-| [02-arquitectura.md](02-arquitectura.md) | Diseño del proxy e IDS | Borrador. Falta justificar los límites y poner ejemplos reales de alerta |
+| [02-arquitectura.md](02-arquitectura.md) | Diseño del proxy e IDS | Borrador con figura. Falta justificar los límites y poner ejemplos reales de alerta |
 | [03-metodologia.md](03-metodologia.md) | Metodología | Borrador. Faltan las métricas y las repeticiones de los experimentos 3 y 4 |
 | [04-resultados.md](04-resultados.md) | Resultados | Parcial. Faltan los falsos positivos, el impacto sobre el vanilla y el costo del registro |
 | [05-limitaciones.md](05-limitaciones.md) | Limitaciones y cambios de alcance | Borrador. Falta la comparación con la propuesta |
