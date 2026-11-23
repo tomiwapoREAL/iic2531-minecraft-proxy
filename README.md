@@ -49,6 +49,10 @@ Una prueba automatizada conectó un cliente de protocolo 26.1 al backend vanilla
 
 El JAR, el JDK, los mundos, los archivos locales del servidor y los registros quedan bajo `.local/`. Trabaja en una rama y abre un pull request hacia `main` para compartir los cambios con el equipo.
 
+## Informe final
+
+El informe se escribe en Markdown, en la carpeta `informe/`, con un archivo por sección. El reparto, las convenciones y el comando para armar el PDF están en [informe/README.md](informe/README.md).
+
 ## Bitácoras del equipo
 
 Escribe tu usuario de GitHub en cada entrada para que el equipo pueda identificar quién hizo la prueba o reportó el problema.
