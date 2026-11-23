@@ -190,11 +190,28 @@ verificado en este documento): lag severo en el servidor durante el ataque y
 desconexion del jugador legitimo mientras los bots operaban. Corresponde a una
 negacion de servicio a un usuario real.
 
-**Evidencia pendiente** para cerrar la cadena causal entre el ataque y el
-impacto: el `latest.log` del servidor anfitrion durante la ventana del ataque
-(desconexiones, avisos de sobrecarga) y el uso de CPU/RAM del proceso Java en el
-pico. El atacante mide su propio envio; el impacto en el servidor debe
-respaldarse con esos artefactos tomados en la maquina anfitriona.
+**Consumo del proceso Java** (medido en la maquina anfitriona, muestreo por
+segundo del proceso `java`):
+
+| Fase | CPU% del total | RAM |
+| --- | ---: | ---: |
+| Reposo (antes) | ~1% | ~2.022 MB |
+| Durante el ataque | 30-47% sostenido, pico 47% | ~2.024 MB |
+| Reposo (despues) | ~1% | ~2.024 MB |
+
+La CPU subio de ~1% a un rango sostenido de 30-47% durante ~42 s (18:17:06 a
+18:17:48) y volvio a ~1% al terminar, enmarcada por reposo antes y despues: la
+carga coincide con la ventana del ataque. La RAM se mantuvo plana (+2 MB), por
+lo que el ataque esta ligado al procesamiento (CPU), no al consumo de memoria.
+
+El pico de 47% no satura el total de la CPU, pero el servidor de Minecraft
+procesa los ticks en un solo hilo; un nucleo saturado no se refleja como 100%
+del total, de modo que el porcentaje agregado subestima la saturacion real del
+hilo principal, que es lo que produce el lag y la desconexion del jugador.
+
+**Evidencia aun pendiente** (opcional, refuerza el mecanismo): el `latest.log`
+del servidor anfitrion durante la ventana del ataque, para registrar la
+desconexion del jugador con su marca de tiempo junto a estas mediciones.
 
 **Limitacion del proxy frente a este ataque.** Cada bot se mantiene por debajo
 de los umbrales por conexion (su tasa individual no supera los limites de
