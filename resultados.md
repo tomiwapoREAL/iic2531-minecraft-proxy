@@ -94,3 +94,72 @@ La consulta abarcó desde las 22:09:00 hasta antes de las 22:32:00, hora de Sant
 | `42a876d2` | 22:31:53.314 | 22:31:58.484 | 245 |
 
 El mayor solapamiento observado fue de **dos sesiones**. La conexión `269c0522` coincidió con `2319d935` entre las 22:23:41.698 y las 22:29:18.505, y luego con `04cf0211` entre las 22:29:31.489 y las 22:31:15.790. Más tarde también se solaparon `af66edb9` y `472d76cb` entre las 22:31:35.978 y las 22:31:38.347. Estos intervalos se calculan entre el primer y el último paquete observado de cada conexión.
+
+## Evaluación de ataques
+
+Esta sección reúne dos mitades complementarias. La validación de detección
+comprueba que las reglas disparan y que el modo enforce desconecta. El impacto
+sobre el servidor vanilla mide la consecuencia real del ataque y cuánto la
+contiene el proxy. La primera se corrió en un entorno controlado; la segunda
+requiere el servidor vanilla 26.1 y queda pendiente de ejecutar.
+
+### Validación de detección
+
+**Entorno** Las corridas se hicieron con `src/attacker.mjs` contra el proxy en
+`127.0.0.1:25565`, con un backend de prueba en JavaScript (`minecraft-protocol`
+`createServer`) en lugar del servidor vanilla. Este montaje valida la lógica de
+las reglas, que es independiente del backend: el proxy inspecciona el payload ya
+interpretado de los paquetes serverbound antes de reenviarlos. No mide impacto
+sobre un servidor real; eso corresponde a la sección siguiente.
+
+Límites de la corrida: regla de tasa `arm_animation=60` por segundo; tamaño de
+paquete y de `custom_payload` 32.768 bytes; libro 102.400 caracteres;
+desplazamiento 10 bloques entre paquetes de posición.
+
+| Ataque | Carga enviada | Alertas en observe | Resultado en enforce |
+| --- | --- | --- | --- |
+| Inundación de paquetes | 400 `arm_animation` | `packet_rate` ×1 | alerta y desconexión |
+| Movimiento imposible | 11 `position`, saltos de 1.000 bloques | `movement_distance` ×10 | alerta y desconexión |
+| Carga sobredimensionada | `custom_payload` de 200 KB y libro de 300.000 caracteres | `packet_size` ×2, `payload_size` ×1, `book_length` ×1 | alerta y desconexión |
+| Inundación de login | 20 conexiones en ráfaga | sin alerta | sin alerta |
+
+En observe el proxy registra cada infracción y sigue reenviando: el movimiento
+imposible produjo una alerta por cada salto y la carga sobredimensionada disparó
+las tres reglas de tamaño. En enforce la primera alerta registra una acción
+`disconnect` y corta la sesión sin reenviar el paquete infractor, por lo que se
+observa una sola alerta por ataque.
+
+**Limitación conocida** La inundación de login no genera ninguna alerta. El
+conjunto actual de reglas no incluye una tasa de conexiones nuevas, y el propio
+proxy es el recurso que absorbe esa carga. Queda como trabajo futuro una regla
+de tasa por dirección de origen o por ventana de conexiones.
+
+### Impacto sobre el servidor vanilla
+
+**Pendiente de ejecutar.** Esta es la medición que no se puede falsear con un
+backend de prueba: el objetivo es mostrar que un ataque degrada o tumba el
+servidor vanilla 26.1 sin proxy y que el proxy lo contiene. Procedimiento:
+
+1. Levantar el servidor vanilla en `127.0.0.1:25566` y el proxy en `25565`.
+2. Para cada ataque, correr tres condiciones: conexión directa al backend (sin
+   proxy), proxy en observe y proxy en enforce.
+3. Registrar por condición las métricas del servidor y del proxy.
+
+| Ataque | Condición | TPS mínimo | RAM máx. | ¿Caída? | Latencia del proxy | Alertas |
+| --- | --- | --- | --- | --- | --- | --- |
+| Inundación de paquetes | sin proxy | | | | — | — |
+| Inundación de paquetes | observe | | | | | |
+| Inundación de paquetes | enforce | | | | | |
+| Movimiento imposible | sin proxy | | | | — | — |
+| Movimiento imposible | observe | | | | | |
+| Movimiento imposible | enforce | | | | | |
+| Carga sobredimensionada | sin proxy | | | | — | — |
+| Carga sobredimensionada | observe | | | | | |
+| Carga sobredimensionada | enforce | | | | | |
+| Inundación de login | sin proxy | | | | — | — |
+| Inundación de login | observe | | | | | |
+| Inundación de login | enforce | | | | | |
+
+Las columnas de alertas y latencia se completan desde el JSONL del proxy con
+`scripts/analizar-registro.mjs`. El TPS, la RAM y la caída se leen de la consola
+y del `latest.log` del servidor vanilla.
