@@ -2,22 +2,9 @@
 
 ## Visión general
 
-```
- Cliente Minecraft 26.1                Proxy (Node.js)                      Servidor vanilla 26.1
- ──────────────────────   TCP    ┌──────────────────────────────┐   TCP    ──────────────────────
-  cuenta autenticada   ────────▶ │ 127.0.0.1:25565               │ ───────▶  127.0.0.1:25566
-                       ◀──────── │  · autenticación (Mojang)     │ ◀───────  online-mode=false
-                                 │  · reenvío de frames crudos   │
-                                 │  · reglas de contenido        │
-                                 │  · observador de tasa         │
-                                 │  · modo observe / enforce     │
-                                 └──────────────┬───────────────┘
-                                                │ un registro por línea
-                                                ▼
-                                   .local/proxy/packets.jsonl
-```
+![Arquitectura del proxy defensivo. Los paquetes del cliente al servidor se interpretan sobre una copia, pasan por las reglas de contenido, se reenvían intactos y después pasan por el observador de tasa. Todas las alertas llegan a `record()`, que las escribe en el JSONL y, en modo enforce, corta la sesión. El tráfico del servidor al cliente se reenvía sin reglas, pero sus teletransportes reinician la referencia de movimiento. En rojo, el acceso directo al backend que el IDS no ve.](figuras/arquitectura.png)
 
-**[PENDIENTE: reemplazar por una figura en `figuras/` si se quiere una versión gráfica.]**
+La figura muestra el recorrido de un paquete. Al conectarse, el jugador se autentica con Mojang a través del proxy, y el proxy entra al backend en su nombre. Ya en el juego, cada paquete que envía el cliente sigue cuatro pasos numerados, que reflejan el orden real del código. El tráfico que vuelve del servidor se reenvía sin reglas. La flecha roja de la derecha marca el supuesto que el laboratorio no garantiza: el backend también acepta conexiones que no pasan por el proxy.
 
 El proxy está escrito en Node.js 24 sobre la biblioteca `minecraft-protocol` 1.67.0, la primera que soporta el protocolo 775 de la versión 26.1. Tiene tres módulos:
 
