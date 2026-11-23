@@ -1,6 +1,6 @@
 import { closeSync, mkdirSync, openSync, writeSync } from 'node:fs';
 import { createConnection } from 'node:net';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import protocol from 'minecraft-protocol';
@@ -191,21 +191,66 @@ function bridgeSession(proxy, player, { onRecord, rateLimits = {}, contentLimits
   backend.setSocket(createConnection({ host, port: backendPort }));
 }
 
+function parseCliArgs(argv) {
+  const values = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--no-record') { values.noRecord = true; continue; }
+    if (a.startsWith('--')) {
+      const key = a.slice(2);
+      const next = argv[i + 1];
+      if (next !== undefined && !next.startsWith('--')) { values[key] = next; i++; }
+      else values[key] = true;
+    }
+  }
+  return values;
+}
+
+// "arm_animation=60,position=40" -> { arm_animation: 60, position: 40 }
+function parseRateList(text) {
+  const limits = {};
+  for (const pair of text.split(',')) {
+    const trimmed = pair.trim();
+    if (!trimmed) continue;
+    const [name, raw] = trimmed.split('=');
+    const limit = Number(raw);
+    if (!name || !Number.isSafeInteger(limit) || limit < 1) {
+      throw new Error(`--rate invalido en "${trimmed}": usa nombre=entero, p.ej. arm_animation=60`);
+    }
+    limits[name.trim()] = limit;
+  }
+  return limits;
+}
+
 function runLocalProxy() {
-  const limits = JSON.parse(process.env.MINECRAFT_IDS_LIMITS ?? '{}');
-  if (!limits || typeof limits !== 'object' || Array.isArray(limits) ||
-      Object.values(limits).some(limit => !Number.isSafeInteger(limit) || limit < 1)) {
-    throw new Error('MINECRAFT_IDS_LIMITS debe ser un objeto JSON con límites enteros positivos.');
+  const cli = parseCliArgs(process.argv.slice(2));
+
+  // Limites de tasa: --rate "arm_animation=60,position=40" o MINECRAFT_IDS_LIMITS (JSON).
+  let limits;
+  if (typeof cli.rate === 'string') {
+    limits = parseRateList(cli.rate);
+  } else {
+    limits = JSON.parse(process.env.MINECRAFT_IDS_LIMITS ?? '{}');
+    if (!limits || typeof limits !== 'object' || Array.isArray(limits) ||
+        Object.values(limits).some(limit => !Number.isSafeInteger(limit) || limit < 1)) {
+      throw new Error('MINECRAFT_IDS_LIMITS debe ser un objeto JSON con limites enteros positivos.');
+    }
   }
 
   const contentLimits = JSON.parse(process.env.MINECRAFT_CONTENT_LIMITS ?? '{}');
-  const mode = process.env.MINECRAFT_PROXY_MODE === 'enforce' ? 'enforce' : 'observe';
 
-  const logDirectory = new URL('../.local/proxy/', import.meta.url);
-  const logPath = new URL('packets.jsonl', logDirectory);
+  // Precedencia: flag CLI > variable de entorno > valor por defecto.
+  const mode = (cli.mode ?? process.env.MINECRAFT_PROXY_MODE) === 'enforce' ? 'enforce' : 'observe';
+  const onlineMode = cli.online !== undefined
+    ? !(cli.online === 'false' || cli.online === false)
+    : process.env.MINECRAFT_PROXY_ONLINE !== 'false';
+  const shouldRecord = !(cli.noRecord || cli['no-record']);
+
+  const defaultDir = new URL('../.local/proxy/', import.meta.url);
+  const logPath = typeof cli.log === 'string' ? cli.log : fileURLToPath(new URL('packets.jsonl', defaultDir));
   let log;
-  if (!process.argv.includes('--no-record')) {
-    mkdirSync(logDirectory, { recursive: true });
+  if (shouldRecord) {
+    mkdirSync(dirname(logPath), { recursive: true });
     log = openSync(logPath, 'a');
   }
 
@@ -219,7 +264,7 @@ function runLocalProxy() {
     limits,
     contentLimits,
     mode,
-    onlineMode: process.env.MINECRAFT_PROXY_ONLINE !== 'false',
+    onlineMode,
     onRecord: log === undefined ? undefined : record => {
       if (log === undefined) return;
       try {
@@ -231,8 +276,8 @@ function runLocalProxy() {
     },
   });
   proxy.once('listening', () => {
-    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort} (modo ${mode}, online-mode ${process.env.MINECRAFT_PROXY_ONLINE !== 'false'})`);
-    if (log !== undefined) console.log(`Registro IDS: ${fileURLToPath(logPath)}`);
+    console.log(`Proxy Minecraft ${version} en ${host}:25565 → ${host}:${backendPort} (modo ${mode}, online-mode ${onlineMode})`);
+    if (log !== undefined) console.log(`Registro IDS: ${logPath}`);
   });
   proxy.on('error', error => {
     console.error(`Error del proxy: ${error.message}`);
