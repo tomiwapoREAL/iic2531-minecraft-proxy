@@ -163,3 +163,43 @@ servidor vanilla 26.1 sin proxy y que el proxy lo contiene. Procedimiento:
 Las columnas de alertas y latencia se completan desde el JSONL del proxy con
 `scripts/analizar-registro.mjs`. El TPS, la RAM y la caída se leen de la consola
 y del `latest.log` del servidor vanilla.
+
+### Estres con bots concurrentes
+
+**Fecha** 23 de noviembre de 2026. **Entorno** Cliente atacante `server_stress`
+directo al servidor vanilla 26.1 en `127.0.0.1:25566` (sin proxy), en la maquina
+anfitriona, con un jugador legitimo conectado en paralelo.
+
+**Salida del atacante** (medido, `src/attacker.mjs`):
+
+| Metrica | Valor |
+| --- | ---: |
+| Bots lanzados | 100 |
+| Bots que entraron (`joined`) | 100 |
+| Bots vivos al final (`vivosAlFinal`) | 98 |
+| Paquetes enviados | 149.292 |
+| Duracion | 45,0 s |
+| Tasa agregada | ~3.300 paquetes/s |
+
+Los 100 bots entraron, lo que indica que el servidor anfitrion no aplicaba el
+limite de 20 jugadores de la copia de laboratorio. La perdida de solo 2 bots
+muestra que el ataque se sostuvo durante los 45 s.
+
+**Efecto observado** (observacion directa del equipo, no de un registro
+verificado en este documento): lag severo en el servidor durante el ataque y
+desconexion del jugador legitimo mientras los bots operaban. Corresponde a una
+negacion de servicio a un usuario real.
+
+**Evidencia pendiente** para cerrar la cadena causal entre el ataque y el
+impacto: el `latest.log` del servidor anfitrion durante la ventana del ataque
+(desconexiones, avisos de sobrecarga) y el uso de CPU/RAM del proceso Java en el
+pico. El atacante mide su propio envio; el impacto en el servidor debe
+respaldarse con esos artefactos tomados en la maquina anfitriona.
+
+**Limitacion del proxy frente a este ataque.** Cada bot se mantiene por debajo
+de los umbrales por conexion (su tasa individual no supera los limites de
+`arm_animation` ni de movimiento), por lo que las reglas actuales no lo
+detienen. Es el mismo vacio de la inundacion de login: el rate-limiting por
+conexion no cubre un ataque distribuido entre muchas sesiones. Una defensa
+efectiva requeriria una regla agregada (conexiones nuevas o paquetes por ventana
+sumando todas las sesiones).
