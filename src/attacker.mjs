@@ -124,11 +124,14 @@ export async function serverStress(options = {}) {
   const { host, port, version } = { ...DEFAULTS, ...options };
   const bots = options.bots ?? 40;
   const durationMs = (options.durationSec ?? 45) * 1000;
-  const stepBlocks = options.step ?? 8;        // bloques por envio (~20/s)
+  const stepBlocks = options.step ?? 8;        // bloques por envio
+  const intervalMs = options.intervalMs ?? 50; // pausa entre envios (50 = ~20/s)
+  const chat = options.chat ?? false;          // spam de chat (amplificacion O(n^2))
   const deadline = Date.now() + durationMs;
 
   let joined = 0;
   let packets = 0;
+  let chatSent = 0;
   let alive = 0;
   const start = performance.now();
 
@@ -169,6 +172,7 @@ export async function serverStress(options = {}) {
     const dirZ = Math.sin(angle);
     const flags = { onGround: true, hasHorizontalCollision: false };
 
+    let tick = 0;
     while (open && Date.now() < deadline) {
       pos.x += dirX * stepBlocks;              // avanza desde la posicion real
       pos.z += dirZ * stepBlocks;
@@ -176,17 +180,33 @@ export async function serverStress(options = {}) {
         client.write('position', { x: pos.x, y: pos.y, z: pos.z, flags });
         client.write('arm_animation', { hand: 'main_hand' });
         packets += 2;
+        // Spam de chat: el servidor reenvia cada mensaje a todos los jugadores,
+        // asi que N bots chateando generan una difusion de orden N^2. Se envia
+        // de forma espaciada para no gatillar el anti-spam del propio vanilla.
+        if (chat && tick % 5 === 0) {
+          client.write('chat_message', {
+            message: `stress ${index}-${tick}`,
+            timestamp: BigInt(Date.now()),
+            salt: 0n,
+            signature: undefined,
+            offset: 0,
+            acknowledged: Buffer.alloc(3),
+            checksum: 0,
+          });
+          chatSent++;
+        }
       } catch {
         break;
       }
-      await new Promise(r => setTimeout(r, 50));
+      tick++;
+      await new Promise(r => setTimeout(r, intervalMs));
     }
     if (open) { alive++; client.end('fin del estres'); }
   }
 
   await Promise.all(Array.from({ length: bots }, (_, i) => oneBot(i)));
   const elapsedMs = Math.round(performance.now() - start);
-  return { attack: 'server_stress', bots, joined, vivosAlFinal: alive, packets, elapsedMs, sent: packets };
+  return { attack: 'server_stress', bots, joined, vivosAlFinal: alive, packets, chatSent, elapsedMs, sent: packets };
 }
 
 
@@ -209,6 +229,8 @@ async function main() {
     bots: { type: 'string' },
     duration: { type: 'string' },
     step: { type: 'string' },
+    'rate-ms': { type: 'string' },
+    chat: { type: 'boolean', default: false },
     help: { type: 'boolean', default: false },
   } });
 
@@ -230,6 +252,8 @@ async function main() {
   if (values.bots) options.bots = Number(values.bots);
   if (values.duration) options.durationSec = Number(values.duration);
   if (values.step) options.step = Number(values.step);
+  if (values['rate-ms']) options.intervalMs = Number(values['rate-ms']);
+  if (values.chat) options.chat = true;
 
   const summary = await run(options);
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
