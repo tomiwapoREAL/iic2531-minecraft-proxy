@@ -144,6 +144,30 @@ expulsa a jugadores reales, y el proxy en *enforce* lo contiene desconectando ca
 todas las sesiones. El detalle y las cifras intermedias están en
 [resultados.md](../resultados.md).
 
+## Resistencia del servidor a la caída
+
+Se intentó provocar un cierre del proceso del servidor **sin modificar el heap**,
+con tres vectores: `server_stress` (movimiento, que genera chunks), `packet_storm`
+(inundación estática de `arm_animation`) y `flood` (movimiento con reconexión
+inmediata). Ninguno cerró el proceso.
+
+El patrón es común y está en el `latest.log`: el servidor emite `Can't keep up`,
+con el peor caso en **313 ticks (15,6 s) de atraso**, pero el watchdog —que exige un
+solo *tick* de más de 60 s— nunca se dispara, porque el flood reparte el trabajo en
+muchos *ticks*. Además hay un efecto autolimitante: al atrasarse, el servidor
+expulsa a sus propios bots por `Timed out` o por `Flying is not enabled` (el
+movimiento se rechazó 20.656 veces como `moved wrongly`), la carga baja y se
+recupera. La reconexión de `flood` mantiene el pool lleno, pero el tiempo en el
+*handshake* diluye la carga de juego, así que lagueó menos, no más.
+
+La conclusión es un resultado de resiliencia: el vanilla 26.1 con el heap por
+defecto **resiste el cierre** frente a floods de nivel de aplicación; el impacto
+máximo alcanzable por esta vía es la degradación hasta volver el servicio
+injugable, que ya es una negación de servicio. Un cierre forzado requeriría un heap
+reducido o una operación costosa en un solo *tick* (NBT grande con permisos de
+creativo), fuera del alcance probado. El detalle está en
+[resultados.md](../resultados.md#resistencia-del-servidor-a-la-caída).
+
 ## Costo del registro
 
 El Experimento 4, una medición aislada del costo del registro (conexión directa
