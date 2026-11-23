@@ -3,6 +3,8 @@
 // patrón de abuso. Devuelve un resumen con lo enviado, el tiempo y si el proxy
 // lo desconectó (señal de que el modo enforce actuó).
 
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import protocol from 'minecraft-protocol';
 
 const DEFAULTS = { host: '127.0.0.1', port: 25565, version: '26.1' };
@@ -214,6 +216,6 @@ async function main() {
   process.exit(0);
 }
 
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/^.*\//, ''))) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => { process.stderr.write(`error: ${error.message}\n`); process.exit(1); });
 }
