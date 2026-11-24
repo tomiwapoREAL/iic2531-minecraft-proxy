@@ -54,3 +54,17 @@ Sin LaTeX se puede generar un `.docx` y exportarlo a PDF desde Word o Google Doc
 ```powershell
 pandoc (Get-ChildItem informe\0*.md | Sort-Object Name).FullName -o informe\informe.docx --toc --resource-path=informe
 ```
+
+### Versión compacta (PDF de ~14 páginas, sin LaTeX)
+
+Usa `informe\estilo.css` y un navegador basado en Chromium (Chrome o Edge) como motor de PDF. Pandoc arma un HTML autocontenido (CSS e imagen embebidos) y el navegador lo imprime a PDF:
+
+```powershell
+$pandoc = (Get-Command pandoc).Source
+$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"  # o la ruta de msedge.exe
+$files = (Get-ChildItem informe\0*.md | Sort-Object Name).FullName
+& $pandoc $files -o informe\informe.html --standalone --toc -c informe\estilo.css --embed-resources --resource-path=informe -V lang=es
+& $chrome --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf="$((Get-Location).Path)\informe\informe.pdf" ("file:///" + ((Resolve-Path informe\informe.html).Path -replace '\\','/'))
+```
+
+Los archivos generados (`informe.pdf`, `informe.docx`, `informe.html`) están en `.gitignore`.
