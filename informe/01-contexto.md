@@ -8,6 +8,19 @@ El servidor vanilla trae algunas validaciones propias, como la corrección de mo
 
 Este proyecto estudia otra frontera: un **proxy de inspección** situado entre el cliente y el servidor vanilla. Es la misma idea de un IDS/IPS de red, aplicada a un protocolo de juego. El proxy no modifica el servidor, es transparente para un cliente vanilla y concentra en un solo punto la autenticación, el registro y la aplicación de reglas.
 
+## Ajustes de seguridad entre versiones
+
+La seguridad del servidor vanilla no es estática: a lo largo de las versiones, Mojang y el ecosistema han corregido fallas de disponibilidad y de dependencias que se manifiestan en el tráfico. Fijar la versión en 26.1 sitúa este trabajo en un punto concreto de esa evolución, y conviene tenerlo presente al interpretar los resultados de resiliencia.
+
+| Caso | Mecanismo | Versión afectada → corrección |
+| --- | --- | --- |
+| MC-308703 | Agotamiento de recursos **fuera del heap** al enviar *chunks* (control de flujo) | Reportado en 26.1.2 (y con Fabric); corregido en 26.2 |
+| Caídas de servidor | Vulnerabilidades críticas capaces de tumbar el servidor | Corregidas en 1.21.1 |
+| Log4Shell (CVE-2021-44228) | Ejecución remota de código por la dependencia Log4j incluida en el servidor | Afecta de 1.7 a 1.18; corregido en 1.18.1 |
+| Paquetes malformados (2015) | Caída remota por consumo de memoria al procesar paquetes | Reportado en 1.6.2, aún presente en 1.8.3 |
+
+El caso más cercano a este proyecto es **MC-308703**: una denegación de servicio por memoria **fuera del heap**, un mecanismo distinto del que probamos en [Resistencia del servidor a la caída](04-resultados.md#resistencia-del-servidor-a-la-caída), donde el impacto se concentró en la CPU del hilo principal mientras la RAM se mantuvo plana. Que la compilación exacta 26.1 que usamos esté afectada queda por confirmar. Estos antecedentes se citan como contexto a partir de reportes públicos: [MC-308703](https://michaelbommarito.com/cves/) (M. Bommarito), las [caídas corregidas en 1.21.1](https://www.minecraft.net/en-us/article/minecraft-java-edition-1-21-1) y [Log4Shell](https://www.minecraft.net/en-us/article/important-message--security-vulnerability-java-edition) (notas de Mojang) y los [paquetes malformados de 2015](https://blog.ammaraskar.com/minecraft-vulnerability-advisory/) (A. Askar).
+
 ## Pregunta y objetivos
 
 La pregunta del proyecto es:
