@@ -11,7 +11,7 @@
 .env.*
 
 # Informe generado (se arma con pandoc; ver informe/README.md)
-/informe/informe.pdf
-/informe/informe.docx
-/informe/informe.html
+/informe/*.pdf
+/informe/*.docx
+/informe/*.html
 ~$*
