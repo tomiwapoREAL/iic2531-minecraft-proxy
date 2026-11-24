@@ -95,13 +95,15 @@ La consulta abarcó desde las 22:09:00 hasta antes de las 22:32:00, hora de Sant
 
 El mayor solapamiento observado fue de **dos sesiones**. La conexión `269c0522` coincidió con `2319d935` entre las 22:23:41.698 y las 22:29:18.505, y luego con `04cf0211` entre las 22:29:31.489 y las 22:31:15.790. Más tarde también se solaparon `af66edb9` y `472d76cb` entre las 22:31:35.978 y las 22:31:38.347. Estos intervalos se calculan entre el primer y el último paquete observado de cada conexión.
 
+El proxy registró como máximo dos sesiones a la vez pese a que jugaron tres personas, porque el tercer jugador se conectó directamente al backend en `127.0.0.1:25566` sin pasar por el proxy, de modo que su tráfico nunca llegó al observador. Es el mismo supuesto incumplido del tropiezo 1: el backend acepta conexiones directas en `online-mode=false`.
+
 ## Evaluación de ataques
 
 Esta sección reúne dos mitades complementarias. La validación de detección
 comprueba que las reglas disparan y que el modo enforce desconecta. El impacto
 sobre el servidor vanilla mide la consecuencia real del ataque y cuánto la
 contiene el proxy. La primera se corrió en un entorno controlado; la segunda
-requiere el servidor vanilla 26.1 y queda pendiente de ejecutar.
+se ejecutó contra el servidor vanilla 26.1.
 
 ### Validación de detección
 
@@ -179,10 +181,11 @@ por lo que su total de alertas no se aisla; para una medicion limpia conviene un
 
 **Correccion a la hipotesis previa.** Se esperaba que las reglas por conexion no
 frenaran un ataque distribuido. La corrida lo refuto: en enforce el proxy corto
-las 100 sesiones. Queda por identificar en el JSONL que regla disparo por bot
-(el ataque mueve a los bots de forma continua, lo que apunta a la regla de
-movimiento o a la de tasa de posicion). La tabla se completa con el muestreo de
-CPU/RAM del enforce y el desglose de alertas de ambas corridas.
+98 de las 100 sesiones. Cada bot, al moverse de forma continua, cruzo tanto la
+regla de tasa de posicion (`packet_rate`) como la de desplazamiento
+(`movement_distance`); la primera alerta corto su sesion. El desglose por regla
+(224 `packet_rate`, 84 `movement_distance`) y el muestreo de CPU/RAM del enforce
+estan en la tabla de impacto de arriba.
 
 ### Estres con bots concurrentes
 

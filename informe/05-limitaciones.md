@@ -16,7 +16,7 @@
 
 ## Limitaciones de la evaluación
 
-**Backend de prueba en la validación.** El Experimento 2 se hizo contra un backend escrito con `minecraft-protocol` y no contra el servidor vanilla. Demuestra que las reglas se disparan, pero no que el servidor real se vea afectado por los ataques ni que el proxy lo proteja. Esa es la pregunta del Experimento 3, que está pendiente.
+**Backend de prueba en la validación.** El Experimento 2 se hizo contra un backend escrito con `minecraft-protocol` y no contra el servidor vanilla. Demuestra que las reglas se disparan, pero no que el servidor real se vea afectado por los ataques ni que el proxy lo proteja. Esa es la pregunta del Experimento 3, cuyos resultados se reportan en [Resultados](04-resultados.md#impacto-sobre-el-servidor-vanilla).
 
 **Una sola corrida por condición.** Cada ataque se ejecutó una vez por modo, y el estrés del servidor una vez en cada una de las tres condiciones. Con una sola corrida no se puede estimar la varianza entre ejecuciones ni descartar efectos de una medición puntual; las cifras de impacto deben leerse como un caso observado, no como un promedio.
 
@@ -34,7 +34,16 @@
 
 ## Cambios respecto de la propuesta original
 
-**[CONFIRMAR: contrastar con la propuesta entregada al curso (Propuesta_Proyecto_Final_Seguridad.pdf); el equipo tiene ese documento.]** Dentro del propio repositorio el alcance evolucionó así:
+La propuesta entregada al curso planteaba un alcance más amplio que el finalmente ejecutado. Las diferencias principales:
+
+- **Direcciones de amenaza.** La propuesta distinguía tres: (A) cliente→servidor, (B) servidor→cliente y (C) cliente→servidor→otro cliente, con la (A) como núcleo y las otras dos sujetas al tiempo disponible. Solo se abordó la (A); (B) y (C) quedaron fuera de alcance, como se declara en [Contexto](01-contexto.md#alcance).
+- **Motor de detección.** Se propusieron dos capas: reglas (tamaño, tasa, validación de estructura) y una detección de anomalías basada en estadísticas de tráfico normal por jugador. Se implementó solo la capa de reglas (tasa y contenido); la detección estadística no se construyó.
+- **Acciones.** La propuesta contemplaba registrar, descartar el paquete, desconectar y banear temporalmente. El proxy registra (*observe*) y desconecta la sesión (*enforce*); no descarta paquetes individuales dejando viva la sesión, ni aplica baneos temporales.
+- **Generador de tráfico.** Se propuso, además del cliente atacante, un conjunto de bots de tráfico «normal» para la línea base. La línea base se obtuvo de sesiones humanas reales; sí se construyó el cliente atacante.
+- **Evaluación.** La propuesta pedía recall por clase de ataque, falsos positivos sobre tráfico normal e impacto del proxy medido como latencia añadida y throughput según el número de jugadores. La detección se validó por ataque, no como recall formal; los falsos positivos no se midieron de forma limpia (ver arriba); y el impacto se midió como CPU y RAM del servidor bajo un ataque distribuido, no como latencia ni throughput del proxy.
+- **Validación de estructura y ataques conocidos.** La propuesta mencionaba validar estructura (VarInts, NBT) y revisar ataques documentados como Log4Shell. El reenvío crudo no valida estructura más allá del tamaño del paquete, y Log4Shell no aplica a la versión 26.1.
+
+Dentro del propio repositorio el alcance evolucionó así:
 
 1. El primer hito fue solo de observación: una partida vanilla 26.1 que produjera un registro JSONL a través del proxy, sin reglas activas.
 2. Después se agregaron las reglas de contenido y el modo *enforce*, que convierten el IDS en un IPS.

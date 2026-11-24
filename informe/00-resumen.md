@@ -10,17 +10,6 @@ date: "Noviembre de 2026"
 
 # Resumen
 
-> **Notas para quien escribe**
->
-> - Escríbelo **al final**, cuando las demás secciones estén cerradas. Un párrafo de 150 a 250 palabras.
-> - Responde en este orden:
->   - qué problema se estudia;
->   - qué se construyó (un proxy entre el cliente y el servidor vanilla 26.1, con un IDS por tasa y por contenido y los modos observe y enforce);
->   - cómo se evaluó (línea base de partidas reales, cliente atacante y comparación de condiciones);
->   - el resultado principal, con cifras;
->   - la limitación más importante.
-> - No agregues información que no aparezca en el cuerpo del informe.
-
 Los servidores de Minecraft Java están expuestos a abuso en el tráfico de juego:
 paquetes malformados, movimiento imposible, cargas sobredimensionadas e inundaciones
 de conexiones o de paquetes. Este trabajo estudia qué puede hacer un proxy defensivo

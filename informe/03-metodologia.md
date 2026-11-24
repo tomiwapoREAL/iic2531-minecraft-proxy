@@ -51,7 +51,7 @@ Más tarde se repitió el procedimiento en una partida más larga, con tres pers
 
 ## Experimento 3 · Impacto de los ataques sobre el servidor vanilla
 
-**Estado: diseñado, todavía no ejecutado.**
+**Estado: ejecutado** (una corrida por condición; los resultados están en [Resultados](04-resultados.md#impacto-sobre-el-servidor-vanilla)).
 
 **Objetivo.** Medir si los ataques degradan o tumban el servidor vanilla 26.1 cuando no hay proxy, y cuánto contiene ese efecto el proxy.
 
