@@ -9,3 +9,9 @@
 *.jsonl
 .env
 .env.*
+
+# Informe generado (se arma con pandoc; ver informe/README.md)
+/informe/informe.pdf
+/informe/informe.docx
+/informe/informe.html
+~$*

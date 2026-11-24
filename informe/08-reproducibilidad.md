@@ -84,6 +84,4 @@ node .\src\proxy.mjs --no-record
 
 ## Versión evaluada
 
-**[PENDIENTE: hash del commit con que se obtuvieron los resultados finales.]**
-
-El esqueleto de este informe se escribió sobre el commit `579edff` de `develop`, y en esa versión las 10 pruebas unitarias pasan.
+Los resultados finales se obtuvieron con el commit `f333698` de `develop`; en esa versión el código del proxy, el atacante y los scripts son los que se describen en este anexo, y las 10 pruebas unitarias pasan.
