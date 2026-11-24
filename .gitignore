@@ -14,4 +14,6 @@
 /informe/*.pdf
 /informe/*.docx
 /informe/*.html
+# excepto el PDF final de entrega
+!/informe/informe-compacto.pdf
 ~$*
