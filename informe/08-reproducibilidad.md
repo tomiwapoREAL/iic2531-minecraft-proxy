@@ -64,10 +64,10 @@ Para la condición *enforce* se repite con `--mode enforce` y `--etiqueta enforc
 node .\scripts\experimentos.mjs --port 25566 --sin-registro --etiqueta sin-proxy
 ```
 
-Estrés del servidor, con 40 bots durante 45 segundos que avanzan 8 bloques por envío:
+Estrés del servidor, con 100 bots durante 45 segundos que avanzan 8 bloques por envío (la corrida reportada en [Resultados](04-resultados.md#impacto-sobre-el-servidor-vanilla)):
 
 ```powershell
-node .\src\attacker.mjs --attack server_stress --bots 40 --duration 45 --step 8
+node .\src\attacker.mjs --attack server_stress --bots 100 --duration 45 --step 8
 ```
 
 Un ataque individual:
