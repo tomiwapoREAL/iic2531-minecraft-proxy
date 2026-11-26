@@ -84,4 +84,6 @@ node .\src\proxy.mjs --no-record
 
 ## Versión evaluada
 
-Los resultados finales se obtuvieron con el commit `f333698` de `develop`; en esa versión el código del proxy, el atacante y los scripts son los que se describen en este anexo, y las 10 pruebas unitarias pasan.
+Los resultados finales se obtuvieron con el código en el commit `f333698` de `develop`, que incluye el proxy con la corrección de `set_equipment`, las reglas de tasa y de contenido, el cliente atacante y los tres ataques de estrés (`server_stress`, `packet_storm` y `flood`). En esa versión las 10 pruebas unitarias pasan.
+
+El esqueleto de este informe se escribió sobre el commit `579edff` de `develop`, y en esa versión las 10 pruebas unitarias pasan.
