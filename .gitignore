@@ -14,6 +14,7 @@
 /informe/*.pdf
 /informe/*.docx
 /informe/*.html
-# excepto el PDF final de entrega
+# excepto el PDF final de entrega y la plantilla compacta (fuente del armado)
 !/informe/informe-compacto.pdf
+!/informe/referencia-compacta.docx
 ~$*

@@ -55,16 +55,14 @@ Sin LaTeX se puede generar un `.docx` y exportarlo a PDF desde Word o Google Doc
 pandoc (Get-ChildItem informe\0*.md | Sort-Object Name).FullName -o informe\informe.docx --toc --resource-path=informe
 ```
 
-### Versión compacta (PDF de ~14 páginas, sin LaTeX)
+### Versión compacta (DOCX de 14 páginas para exportar desde Word)
 
-Usa `informe\estilo.css` y un navegador basado en Chromium (Chrome o Edge) como motor de PDF. Pandoc arma un HTML autocontenido (CSS e imagen embebidos) y el navegador lo imprime a PDF:
+`informe\referencia-compacta.docx` es una plantilla de pandoc (fuente 9 pt, márgenes ~1,2 cm, espaciado reducido y títulos más chicos). Produce un `.docx` denso que Word exporta a PDF en 14 páginas con su estilo normal:
 
 ```powershell
-$pandoc = (Get-Command pandoc).Source
-$chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"  # o la ruta de msedge.exe
-$files = (Get-ChildItem informe\0*.md | Sort-Object Name).FullName
-& $pandoc $files -o informe\informe.html --standalone --toc -c informe\estilo.css --embed-resources --resource-path=informe -V lang=es
-& $chrome --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf="$((Get-Location).Path)\informe\informe.pdf" ("file:///" + ((Resolve-Path informe\informe.html).Path -replace '\\','/'))
+pandoc (Get-ChildItem informe\0*.md | Sort-Object Name).FullName -o informe\informe-compacto.docx --toc --resource-path=informe --reference-doc=informe\referencia-compacta.docx
 ```
 
-Los archivos generados (`informe.pdf`, `informe.docx`, `informe.html`) están en `.gitignore`.
+Ábrelo en Word → **Guardar como → PDF**. Los artefactos generados (`*.pdf`, `*.docx`, `*.html`) están en `.gitignore`, salvo la plantilla `referencia-compacta.docx` y el PDF de entrega `informe-compacto.pdf`.
+
+También existe `informe\estilo.css`, un estilo alternativo para armar el PDF vía pandoc → HTML → navegador (Chrome/Edge `--headless --print-to-pdf`), por si se prefiere ese camino en vez de Word.
